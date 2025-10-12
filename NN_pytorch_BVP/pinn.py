@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 
@@ -160,3 +162,35 @@ class MultilayerPerceptronWithFFE(nn.Module):
 
     def forward(self, x):
         return self.layers(x)
+    
+    @classmethod
+    def save(cls, model, path: Path):
+        """
+        Saves model (both state_dict and additional parameters) to path
+        """
+        config = {
+            "layer_sizes": model.layer_sizes,
+            "init_scheme": model.init_scheme,
+            "activation_fn": model.activation_fn,
+            "use_FFE": model.use_FFE,
+            "FFE_embed_dims": model.FFE_embed_dims[:],
+            "FFE_m": model.FFE_m,
+            "FFE_sigma": model.FFE_sigma
+        }
+        if model.use_FFE:
+            config['layer_sizes'][0] = model.layers[0].in_dim
+        torch.save({"config": config, "state_dict": model.state_dict()}, path)
+
+    @classmethod
+    def load(cls, path: Path):
+        tmp = torch.load(path, weights_only=False)
+
+        config = tmp.get("config")
+        if config is None:
+            raise KeyError("Checkpoint missing 'config'. Cannot reconstruct model.")
+        
+        model = cls(**config)
+        model.load_state_dict(tmp["state_dict"])
+        model.eval()
+
+        return model
