@@ -130,7 +130,10 @@ class Coach():
         return (loss, loss_r, loss_bc if is_spatial else None, loss_ic if is_time_dependent else None, 
                 lambda_r, lambda_bc if is_spatial else None, lambda_ic if is_time_dependent else None, w, loss_r_i)
 
-    def train(self, training_params, verbose=True):
+    def train(self, training_params, verbose=True, network_save_freq=None):
+        """
+        network_save_freq - частота сохранения параметров нейросети на диск
+        """
         # Назначение некоторых ярлыков для облегчения кода и ускорения доступа к полям данных соотв. объектов
         model = self.model
         device = next(model.parameters()).device
@@ -407,6 +410,8 @@ class Coach():
                 with open(results_dir / tm_filename, "a", encoding="utf-8") as f:
                         f.write(row_str)
                         f.write('\n')
+                if network_save_freq is not None and ((epoch + 1) % network_save_freq == 0 or epoch == n_epochs - 1):
+                    MultilayerPerceptronWithFFE.save(model, results_dir / "neural_net.pth")
             if (epoch + 1) % 10 == 0 and verbose:
                     print(row_str)
 
