@@ -9,29 +9,25 @@ import torch
 from NN_pytorch_BVP.pinn import *
 
 
-device = 'cpu'
-torch.manual_seed(2007)
-model = MultilayerPerceptronWithFFE(
-    layer_sizes=[3, 256, 256, 1], 
-    init_scheme='glorot_normal', 
-    activation_fn=nn.Tanh(),
-    use_FFE=True,
-    FFE_embed_dims=[],
-    FFE_m=100,
-    FFE_sigma=8.0
-).to(device)
+def test_save_load_results():
+    device = 'cpu'
+    model = MultilayerPerceptronWithFFE(
+        layer_sizes=[3, 256, 256, 1], 
+        init_scheme='glorot_normal', 
+        activation_fn=nn.Tanh(),
+        use_FFE=True,
+        FFE_embed_dims=[],
+        FFE_m=100,
+        FFE_sigma=8.0
+    ).to(device)
 
-print("BEFORE SAVE:")
-print(model.state_dict().keys())  # names
-print(model(torch.tensor([0.0, 1.0, 2.0], device=device).reshape(1, -1)))
-print()
-model_path = Path.cwd() / 'scripts' / 'test.pth'
-MultilayerPerceptronWithFFE.save(model, model_path)
+    model_path = Path.cwd() / 'scripts' / 'test.pth'
+    MultilayerPerceptronWithFFE.save(model, model_path)
+    model2 = MultilayerPerceptronWithFFE.load(model_path)
 
-model2 = MultilayerPerceptronWithFFE.load(model_path)
-print("AFTER SAVE:")
-print(model2.state_dict().keys())  # names
-print(model2(torch.tensor([0.0, 1.0, 2.0], device=device).reshape(1, -1)))
+    x = torch.randn((10, 3), device=device)
+    
+    assert torch.all(model(x) == model2(x)), "Изменился результат работы модели после её загрузки с диска"
 
 
 # То есть сохраняем state_dict модели. 
