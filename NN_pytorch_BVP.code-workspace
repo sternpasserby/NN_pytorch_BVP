@@ -4,5 +4,8 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"workbench.tree.indent": 24,
+		"workbench.editor.showIcons": false
+	}
 }

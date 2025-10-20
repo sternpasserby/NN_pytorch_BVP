@@ -168,6 +168,7 @@ class MultilayerPerceptronWithFFE(nn.Module):
         """
         Saves model (both state_dict and additional parameters) to path
         """
+        device = next(model.parameters()).device
         config = {
             "layer_sizes": model.layer_sizes,
             "init_scheme": model.init_scheme,
@@ -175,21 +176,38 @@ class MultilayerPerceptronWithFFE(nn.Module):
             "use_FFE": model.use_FFE,
             "FFE_embed_dims": model.FFE_embed_dims[:],
             "FFE_m": model.FFE_m,
-            "FFE_sigma": model.FFE_sigma
+            "FFE_sigma": model.FFE_sigma,
+            "device": str(device)
         }
         if model.use_FFE:
             config['layer_sizes'][0] = model.layers[0].in_dim
         torch.save({"config": config, "state_dict": model.state_dict()}, path)
 
     @classmethod
-    def load(cls, path: Path):
+    def load(cls, path: Path, device=None):
+        """
+        Loads model saved with cls.save() method. 
+        If device=None, tries to load model to GPU. Otherwise, loads to CPU
+        Currently, the method always loads to cuda:0
+        """
         tmp = torch.load(path, weights_only=False)
 
         config = tmp.get("config")
         if config is None:
             raise KeyError("Checkpoint missing 'config'. Cannot reconstruct model.")
         
-        model = cls(**config)
+        config_device = config.get("device", None)
+        if device is None:
+            if config_device is not None and config_device.startswith("cuda") and torch.cuda.is_available():
+                map_location = "cuda:0"
+            else:
+                map_location = "cpu"
+            device = torch.device(map_location)
+        else:
+            map_location = device
+        
+        model = cls(**{k: v for k, v in config.items() if k != "device"})
+        model.to(device)
         model.load_state_dict(tmp["state_dict"])
         model.eval()
 

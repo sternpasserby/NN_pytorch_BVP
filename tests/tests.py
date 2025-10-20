@@ -36,8 +36,29 @@ def test_save_load_results_cpu():
     model2 = MultilayerPerceptronWithFFE.load(model_path)
 
     x = torch.randn((10, 3), device=device)
+
+    assert torch.all(model(x) == model2(x)), "Изменился результат работы модели после её загрузки с диска"
+
+def test_save_load_results_cuda():
+    device = 'cuda:0'
+    model = MultilayerPerceptronWithFFE(
+        layer_sizes=[3, 256, 512, 1], 
+        init_scheme='glorot_normal', 
+        activation_fn=nn.Tanh(),
+        use_FFE=True,
+        FFE_embed_dims=[],
+        FFE_m=100,
+        FFE_sigma=8.0
+    ).to(device)
+
+    model_path = temp_path / 'test_model_cuda0.pth'
+    MultilayerPerceptronWithFFE.save(model, model_path)
+    model2 = MultilayerPerceptronWithFFE.load(model_path)
+
+    x = torch.randn((10, 3), device=device)
     
     assert torch.all(model(x) == model2(x)), "Изменился результат работы модели после её загрузки с диска"
+
 
 # -------------------------------------------------------------------------------
 
@@ -88,12 +109,12 @@ def main():
         print("\nPassed tests:")
         for name, is_ok, error_kind, tb, duration in results:
             if is_ok:
-                print(f"- {name} ({duration:3f} s)")
+                print(f"- {name} ({duration:.3f} s)")
     if n_failed > 0:
         print("\nFailed tests:")
         for name, is_ok, error_kind, tb, duration in results:
             if not is_ok:
-                print(f"- {name} ({error_kind}, {duration:3f} s)")
+                print(f"- {name} ({error_kind}, {duration:.3f} s)")
 
     # Вывод более подробных результатов тестирования со стеком ошибок 
     # для каждого неуспешного теста
