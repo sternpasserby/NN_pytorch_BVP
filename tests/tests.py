@@ -12,6 +12,7 @@ ROOT = Path.cwd()  # корень проекта
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from NN_pytorch_BVP.pinn import *
+from NN_pytorch_BVP.formatted_table import *
 
 # Создание папки для временных файлов, если её нет
 temp_path = ROOT / 'tests' / 'temp'
@@ -19,7 +20,7 @@ temp_path.mkdir(exist_ok=True)
 
 # ------------------------------------ ТЕСТЫ ------------------------------------
 
-def test_save_load_results_cpu():
+def test_save_load_model_cpu():
     device = 'cpu'
     model = MultilayerPerceptronWithFFE(
         layer_sizes=[3, 256, 512, 1], 
@@ -39,7 +40,7 @@ def test_save_load_results_cpu():
 
     assert torch.all(model(x) == model2(x)), "Изменился результат работы модели после её загрузки с диска"
 
-def test_save_load_results_cuda():
+def test_save_load_model_cuda():
     device = 'cuda:0'
     model = MultilayerPerceptronWithFFE(
         layer_sizes=[3, 256, 512, 1], 
@@ -58,6 +59,40 @@ def test_save_load_results_cuda():
     x = torch.randn((10, 3), device=device)
     
     assert torch.all(model(x) == model2(x)), "Изменился результат работы модели после её загрузки с диска"
+
+def test_formatted_table():
+    table1 = FormattedTable([
+        ("column_str", "{:10s} |"),
+        ("column_decimal", "{:20d}"),
+        ("column_float", "{:15.2f}"),
+        ("column_bool", "{:15}")])
+    assert table1.n_rows == 0, f"n_rows should be 0 after init, got {table1.n_rows}!"
+
+    table1.set_value("column_str", 0, "line")
+    assert table1.n_rows == 1
+    table1.set_value("column_float", 2, 3.3)
+    table1.set_value("column_decimal", 0, 137)
+    table1.set_value("column_decimal", 1, 1)
+    table1.set_value("column_bool", 5, True)
+    table1.set_value("column_bool", 6, False)
+    # set index beyond current allocation -> triggers extend
+    assert table1.n_allocated_rows == 8
+
+    # Equality check
+    tbl1 = FormattedTable([("x", "{:3d}")], n_rows=1)
+    tbl2 = FormattedTable([("x", "{:3d}")], n_rows=1)
+    tbl1.set_value("x", 0, 5)
+    tbl2.set_value("x", 0, 5)
+    assert tbl1 == tbl2
+    tbl2.set_value("x", 0, 6)
+    assert tbl1 != tbl2
+
+    # Save and load check
+    FormattedTable.save(table1, temp_path / "table1.pickle")
+    table1_loaded = FormattedTable.load(temp_path / "table1.pickle")
+    assert table1 == table1_loaded, "Loaded table != original table!"
+
+
 
 
 # -------------------------------------------------------------------------------
