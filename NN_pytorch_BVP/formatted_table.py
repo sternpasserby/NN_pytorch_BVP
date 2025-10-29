@@ -3,6 +3,7 @@ from pathlib import Path
 import pickle
 
 import numpy as np
+import torch
 
 class FormattedTable:
     """
@@ -237,12 +238,12 @@ class FormattedTable:
                 continue
 
             x = data[col.name][i]
-            if isinstance(x, bool) or not isinstance(x, (int, float, complex, np.number)):
-                fmt = col.left_border + '{:>' + str(col.width) + 's}' + col.right_border
-                s += fmt.format(str(x))
-            else:
+            if isinstance(x, (int, float, complex, np.number, torch.Tensor)):
                 fmt = col.format_str
                 s += fmt.format(x)
+            else:
+                fmt = col.left_border + '{:>' + str(col.width) + 's}' + col.right_border
+                s += fmt.format(str(x))
 
         return s
     
@@ -318,13 +319,15 @@ if __name__ == "__main__":
         ("column_str", "{:10s} |"),
         ("column_decimal", "{:20d}"),
         ("column_float", "{:15.2f}"),
-        ("column_bool", "{:15}")])
+        ("column_bool", "{:15}"),
+        ("column_torch", "{:15.2f}")])
     table1.set_value("column_str", 0, "line")
     table1.set_value("column_float", 2, 3.3)
     table1.set_value("column_decimal", 0, 137)
     table1.set_value("column_decimal", 1, 1)
     table1.set_value("column_bool", 5, True)
     table1.set_value("column_bool", 6, False)
+    table1.set_value("column_torch", 3, torch.tensor(3.3))
     print(table1)
 
     temp_path = Path.cwd() / 'tests' / 'temp'
@@ -343,6 +346,7 @@ if __name__ == "__main__":
     assert FormattedTable._extract_width("<4,.4f") == 4
     assert FormattedTable._extract_width("5.4f") == 5
     assert FormattedTable._extract_width("013d") == 13
+    assert "tensor" not in table1.row_as_string(3)
     
     
 """

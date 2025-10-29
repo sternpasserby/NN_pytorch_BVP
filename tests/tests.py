@@ -65,7 +65,8 @@ def test_formatted_table():
         ("column_str", "{:10s} |"),
         ("column_decimal", "{:20d}"),
         ("column_float", "{:15.2f}"),
-        ("column_bool", "{:15}")])
+        ("column_bool", "{:15}"),
+        ("column_tensor", "{:15}")])
     assert table1.n_rows == 0, f"n_rows should be 0 after init, got {table1.n_rows}!"
 
     table1.set_value("column_str", 0, "line")
@@ -77,6 +78,9 @@ def test_formatted_table():
     table1.set_value("column_bool", 6, False)
     # set index beyond current allocation -> triggers extend
     assert table1.n_allocated_rows == 8
+
+    table1.set_value("column_tensor", 3, torch.tensor(3.5))
+    assert "tensor" not in table1.row_as_string(3)
 
     # Equality check
     tbl1 = FormattedTable([("x", "{:3d}")], n_rows=1)
