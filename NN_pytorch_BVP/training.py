@@ -412,6 +412,7 @@ class Coach():
                         f.write('\n')
                 if network_save_freq is not None and ((epoch + 1) % network_save_freq == 0 or epoch == n_epochs - 1):
                     MultilayerPerceptronWithFFE.save(model, results_dir / "neural_net.pth")
+                    FormattedTable.save(tm, results_dir / "training_metrics.pickle")
             if (epoch + 1) % 10 == 0 and verbose:
                     print(row_str)
 
