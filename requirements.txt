@@ -100,8 +100,8 @@ stack-data==0.6.3
 sympy==1.13.3
 terminado==0.18.1
 tinycss2==1.4.0
-torch==2.8.0+cu129
-torchvision==0.23.0+cu129
+torch==2.9.0+cu130
+torchvision==0.24.0+cu130
 tornado==6.5.2
 traitlets==5.14.3
 triton-windows==3.4.0.post20
