@@ -144,8 +144,11 @@ class MultilayerPerceptronWithFFE(nn.Module):
         self.FFE_m = FFE_m
         self.FFE_sigma = FFE_sigma
 
-        layers = [FourierFeatureEmbedding(layer_sizes[0], self.FFE_embed_dims, FFE_m, FFE_sigma)]
-        layer_sizes[0] = layers[0].out_dim
+        if use_FFE:
+            layers = [FourierFeatureEmbedding(layer_sizes[0], self.FFE_embed_dims, FFE_m, FFE_sigma)]
+            layer_sizes[0] = layers[0].out_dim
+        else:
+            layers = []
         for i in range(len(layer_sizes) - 1):
             layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
             if i < len(layer_sizes) - 2:

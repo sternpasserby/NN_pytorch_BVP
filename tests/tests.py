@@ -60,6 +60,26 @@ def test_save_load_model_cuda():
     
     assert torch.all(model(x) == model2(x)), "Изменился результат работы модели после её загрузки с диска"
 
+def test_save_load_model_cuda_no_ffe():
+    device = 'cuda:0'
+    model = MultilayerPerceptronWithFFE(
+        layer_sizes=[3, 256, 512, 1], 
+        init_scheme='glorot_normal', 
+        activation_fn=nn.Tanh(),
+        use_FFE=False,
+        FFE_embed_dims=[],
+        FFE_m=100,
+        FFE_sigma=8.0
+    ).to(device)
+
+    model_path = temp_path / 'test_model_cuda0.pth'
+    MultilayerPerceptronWithFFE.save(model, model_path)
+    model2 = MultilayerPerceptronWithFFE.load(model_path)
+
+    x = torch.randn((10, 3), device=device)
+    
+    assert torch.all(model(x) == model2(x)), "Изменился результат работы модели после её загрузки с диска"
+
 def test_formatted_table():
     table1 = FormattedTable([
         ("column_str", "{:10s} |"),

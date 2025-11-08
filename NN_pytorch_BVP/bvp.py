@@ -823,7 +823,7 @@ u_exact = exp(-t) * sin(x) + exp(-4*t)/2 * cos(2*x)"""
         n_half = n // 2 if n % 2 == 0 else n // 2 + 1    # нужно чтобы у каждой граничной точки была пара. Нужно чтобы вычислить вычеты на границах
         p1 = sample_points_2D( [t_min, x_min, t_max, x_min], n_half, self.scheme, sobol_engine=self.sobol_engine, device=device )
         p2 = p1.clone()
-        p2[:, 0] += x_max - x_min
+        p2[:, 1] += x_max - x_min
         return torch.cat( (p1, p2), dim=0 )
 
     def sample_ic(self, n, device: torch.device = torch.device("cpu")) -> torch.Tensor:
@@ -854,7 +854,10 @@ u_exact = exp(-t) * sin(x) + exp(-4*t)/2 * cos(2*x)"""
 
         res = torch.empty(u_x.shape, dtype=u_x.dtype, device=u_x.device)
         res[id1] = u[id1] - u[~id1] + u_x[id1] - u_x[~id1]
-        res[~id1] = -res[id1]
+        res[~id1] = -u[id1] + u[~id1] - u_x[id1] + u_x[~id1]
+
+        #res[id1] = torch.exp(-4*x[id1, 0:1]) / 2.0 - u[id1]
+        #res[~id1] = torch.exp(-4*x[~id1, 0:1]) / 2.0 - u[~id1]
         
         return res
 
