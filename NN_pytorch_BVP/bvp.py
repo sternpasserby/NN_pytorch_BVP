@@ -778,3 +778,91 @@ u_exact = exp(-25*alpha*pi^2*t) * u_3_4 + 0.5 * exp(-100*alpha*pi^2*t) * u_8_6 +
         a = self.alpha * torch.pi**2 * t
         
         return torch.exp(-25 * a) * u_3_4 + 0.5 * torch.exp(-100 * a) * u_8_6 + self.c * (1.0 - torch.exp(-5*t)) * u_2_3
+    
+class HeatEquation1D_PeriodicBC(BVP, ISpatial, ITemporal):
+    @property
+    def description(self) -> str:
+        return """--- УРАВНЕНИЕ ТЕПЛОПРОВОДНОСТИ. ОДНОМЕРНОЕ ОДНОРОДНОЕ С ПЕРИОДИЧЕСКИМИ К.У. ---
+Подобрано самостоятельно
+u_t = u_xx,    0 < x < 2*Pi,
+u(0, t) = u(2*Pi, t),
+u_x(0, t) = u_x(2*Pi, t),
+u(x, 0) = sin(x) + 1/2 * cos(2*x).
+u_exact = exp(-t) * sin(x) + exp(-4*t)/2 * cos(2*x)"""  
+
+    @property
+    def spatial_dim(self) -> int:
+        return 1
+    
+    def __init__(self, spatial_domain, temporal_domain, scheme='uniform', sobol_engine=None):
+        super().__init__()
+        self._spatial_domain = spatial_domain
+        self._temporal_domain = temporal_domain
+        self.scheme = scheme
+        if scheme == 'sobol' and (sobol_engine is None or not isinstance(sobol_engine, torch.quasirandom.SobolEngine)):
+            raise ValueError("For 'sobol' scheme, a valid SobolEngine instance must be provided.")
+        else:
+            self.sobol_engine = sobol_engine 
+
+    @property
+    def spatial_domain(self): 
+        return self._spatial_domain
+    
+    @property
+    def temporal_domain(self): 
+        return self._temporal_domain
+    
+    def sample_domain(self, n: int, device: torch.device = torch.device("cpu")) -> torch.Tensor:
+        x_min, x_max = self.spatial_domain
+        t_min, t_max = self.temporal_domain
+        return sample_points_2D( [t_min, x_min, t_max, x_max], n, self.scheme, sobol_engine=self.sobol_engine, device=device )
+
+    def sample_bc(self, n, device: torch.device = torch.device("cpu")) -> torch.Tensor:
+        x_min, x_max = self.spatial_domain
+        t_min, t_max = self.temporal_domain
+        n_half = n // 2 if n % 2 == 0 else n // 2 + 1    # нужно чтобы у каждой граничной точки была пара. Нужно чтобы вычислить вычеты на границах
+        p1 = sample_points_2D( [t_min, x_min, t_max, x_min], n_half, self.scheme, sobol_engine=self.sobol_engine, device=device )
+        p2 = p1.clone()
+        p2[:, 0] += x_max - x_min
+        return torch.cat( (p1, p2), dim=0 )
+
+    def sample_ic(self, n, device: torch.device = torch.device("cpu")) -> torch.Tensor:
+        x_min, x_max = self.spatial_domain
+        t_min, t_max = self.temporal_domain
+        return sample_points_2D( [t_min, x_min, t_min, x_max], n, self.scheme, sobol_engine=self.sobol_engine, device=device )
+
+    def get_res_domain(self, model, x: torch.Tensor) -> torch.Tensor:
+        u = model(x)
+
+        tmp = torch.autograd.grad(u, x, grad_outputs=torch.ones_like(u), create_graph=True)[0]
+        u_t = tmp[:, 0:1]
+        u_x = tmp[:, 1:2]
+        u_xx = torch.autograd.grad(u_x, x, grad_outputs=torch.ones_like(u_x), create_graph=True)[0][:, 1:2]
+
+        return u_xx - u_t
+
+    def get_res_bc(self, model, x: torch.Tensor) -> torch.Tensor:
+        u = model(x)
+        u_x = torch.autograd.grad(u, x, grad_outputs=torch.ones_like(u), create_graph=True)[0][:, 1:2]
+
+        # Заранее известно, что у каждой граничной точки есть своя пара на противоположной границе, то есть:
+        # 1) n = len(x) - чётное
+        # 2) x[i, :] == x[i + n // 2, :], 0 <= i <= n // 2 - 1
+        n = len(x)
+        id1 = torch.zeros(n, dtype=torch.bool)
+        id1[:n//2] = True
+
+        res = torch.empty(u_x.shape, dtype=u_x.dtype, device=u_x.device)
+        res[id1] = u[id1] - u[~id1] + u_x[id1] - u_x[~id1]
+        res[~id1] = -res[id1]
+        
+        return res
+
+    def get_res_ic(self, model, x: torch.Tensor) -> torch.Tensor:
+        u = model(x)
+        return torch.sin(x[:, 1:2]) + torch.cos(2.0 * x[:, 1:2]) / 2.0 - u, torch.zeros_like(u)
+
+    def u_exact(self, tx):
+        t = tx[:, 0:1]
+        x = tx[:, 1:2]
+        return torch.exp(-t) * torch.sin(x) + torch.exp(-4*t) / 2.0 * torch.cos(2*x)
