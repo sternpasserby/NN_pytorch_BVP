@@ -131,6 +131,89 @@ class FourierFeatureEmbedding(nn.Module):
         
         return embedded if raw_rest is None else torch.cat([raw_rest, embedded], dim=-1)
 
+class PeriodicLayer(nn.Module):
+    """
+    Periodic feature mapping layer.
+
+    This layer transforms selected input features into a periodic (Fourier-style) embedding.
+    For each input feature `x_i` that is not in `keep_dims`, it produces the following features:
+
+        [1, cos(ω_i*x_i), cos(2*ω_i*x_i), ..., cos(m*ω_i*x_i),
+             sin(ω_i*x_i), sin(2*ω_i*x_i), ..., sin(m*ω_i*x_i)]
+
+    Features specified in `keep_dims` are left unchanged and appended to the output.
+
+    From the article "Sifan Wang, Shyam Sankaran: Respecting causality is all you need 
+    for training physics-informed neural networks"
+
+    Attributes:
+        in_features (int): Number of input features.
+        m (int): Number of harmonics (max multiplier for sine/cosine) for embedding.
+        omega (list[float]): Frequency scaling for each input feature.
+        keep_dims (list[int] or None): Indices of input features to leave unchanged.
+        embed_dims (list[int]): Indices of input features to apply periodic embedding.
+        _coeffs (torch.Tensor): Precomputed coefficients for embedding computation.
+    """
+    def __init__(self, in_features: int, m: int, omega: float | list[float], keep_dims: None | list[int] = None):
+        """
+        Initialize the PeriodicLayer.
+
+        Args:
+            in_features (int): Number of input features (dimensionality of input tensor).
+            m (int): Number of harmonics to use for sine and cosine embeddings.
+            omega (float or list of float): Frequency scaling. If a single float is provided, it is
+                applied to all input features. If a list is provided, its length must equal `in_features`.
+            keep_dims (list[int] or None, optional): Indices of input features that should
+                be kept as-is (not transformed). Default is None (all features are transformed).
+        """
+        super().__init__()
+
+        self.in_features = in_features
+        self.m = m
+        if isinstance(omega, (int, float)):
+            self.omega = [omega] * in_features
+        elif isinstance(omega, list):
+            if len(omega) != in_features:
+                raise ValueError("Length of omega list must equal in_features!")
+            self.omega = omega[:]
+
+        self.keep_dims = None if keep_dims is None else keep_dims[:]
+        
+        if keep_dims is None:
+            embed_dims = list(range(in_features))
+        else:
+            embed_dims = [i for i in range(in_features) if i not in keep_dims]
+            if len(embed_dims) == 0:
+                raise ValueError("'keep_dims' list must not cover all the input features!")
+        self.embed_dims = embed_dims
+
+        self.register_buffer('_coeffs', torch.tensor([[(i + 1) * self.omega[j] for j in self.embed_dims] for i in range(self.m)]))
+
+        self.out_features = len(embed_dims) * (1 + 2*m)
+        if  isinstance(self.keep_dims, list):
+            self.out_features += len(self.keep_dims)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the PeriodicLayer.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape `(batch_size, in_features)`.
+
+        Returns:
+            torch.Tensor: Output tensor with shape `(batch_size, output_features)` where
+                `output_features = len(embed_dims) * (2*m + 1) + len(keep_dims)`.
+                Contains periodic embeddings for selected features and raw values for `keep_dims`.
+        """
+        ones_tensor = x.new_ones((x.shape[0], len(self.embed_dims)))
+        x_embed = x[:, self.embed_dims]
+        tmp = x_embed * self._coeffs
+        result = torch.cat( (ones_tensor, torch.cos(tmp), torch.sin(tmp)), dim=1 )
+        if self.keep_dims is None:
+            return result
+        else:
+            return torch.cat((result, x[:, self.keep_dims]), dim=1)
+
 # --- КЛАСС ПОЛНОСВЯЗНОЙ НЕЙРОННОЙ СЕТИ С FOURIER FEATURE EMBEDDING ---
 class MultilayerPerceptronWithFFE(nn.Module):
     def __init__(self, layer_sizes, init_scheme, activation_fn=nn.Tanh(), use_FFE=True, FFE_embed_dims: list[int] = [], FFE_m=100, FFE_sigma=1.0):
