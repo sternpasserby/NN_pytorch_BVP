@@ -27,9 +27,9 @@ def test_save_load_model_cpu():
         init_scheme='glorot_normal', 
         activation_fn=nn.Tanh(),
         use_FFE=True,
-        FFE_embed_dims=[],
         FFE_m=100,
-        FFE_sigma=8.0
+        FFE_sigma=8.0,
+        FFE_keep_dims=[1, 2]
     ).to(device)
 
     model_path = temp_path / 'test_model_cpu.pth'
@@ -47,9 +47,9 @@ def test_save_load_model_cuda():
         init_scheme='glorot_normal', 
         activation_fn=nn.Tanh(),
         use_FFE=True,
-        FFE_embed_dims=[],
         FFE_m=100,
-        FFE_sigma=8.0
+        FFE_sigma=8.0,
+        FFE_keep_dims=[1, 2]
     ).to(device)
 
     model_path = temp_path / 'test_model_cuda0.pth'
@@ -67,9 +67,9 @@ def test_save_load_model_cuda_no_ffe():
         init_scheme='glorot_normal', 
         activation_fn=nn.Tanh(),
         use_FFE=False,
-        FFE_embed_dims=[],
         FFE_m=100,
-        FFE_sigma=8.0
+        FFE_sigma=8.0,
+        FFE_keep_dims=None
     ).to(device)
 
     model_path = temp_path / 'test_model_cuda0.pth'

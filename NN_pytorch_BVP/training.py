@@ -266,9 +266,9 @@ class Coach():
                         "# init_scheme:                       " + str(model.init_scheme) + "\n" + \
                         "# activation_fn:                     " + str(model.activation_fn) + "\n" + \
                         "# use_FFE:                           " + str(model.use_FFE) + "\n" + \
-                        "# FFE_embed_dims:                    " + str(model.FFE_embed_dims) + "\n" + \
                         "# FFE_m:                             " + str(model.FFE_m) + "\n" + \
-                        "# FFE_sigma:                         " + str(model.FFE_sigma) + "\n"
+                        "# FFE_sigma:                         " + str(model.FFE_sigma) + "\n" + \
+                        "# FFE_keep_dims:                    " + str(model.FFE_keep_dims) + "\n"
         header_str = tm._header_as_string()
         if results_dir is not None:
             with open(results_dir / tm_filename, "w", encoding="utf-8") as f:

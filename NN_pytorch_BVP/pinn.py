@@ -85,51 +85,111 @@ def compute_grad_theta_norm(model):
 
 class FourierFeatureEmbedding(nn.Module):
     """
-    Explicit sinusoidal feature mapping layer.
+    Fourier feature positional encoding for selected input dimensions.
 
-    Args
-    ----
-    in_dim : int
-        Dimensionality of the raw input (e.g. 2 for (x, y) pixels or 3 for (x, y, z) points).
-    m : int
-        Number of frequency bands (creates 2 * m * in_dim output channels).
-    sigma : float
-        A Gaussian σ; draws B~𝒩(0, σ⁻²) (like NeRF).
+    This layer projects a subset of the input features into an `m`-dimensional
+    Gaussian random feature space and returns their cosine and sine embeddings.
+    Optionally, some of the original input dimensions can be preserved and
+    concatenated to the output.
+
+    Args:
+        in_features (int):
+            Total number of input features.
+        m (int):
+            Number of random Fourier features per input dimension.
+            The output from the embedding is of size `2 * m` for the
+            embedded dimensions.
+        sigma (float):
+            Standard deviation of the Gaussian used to initialize the
+            projection matrix `B` ∈ R^{len(embed_dims) × m}.
+        keep_dims (list[int] or None):
+            Indices of input dimensions to be passed through unchanged.
+            If `None`, all input dimensions are Fourier-embedded.
+            If provided, all *other* dimensions are embedded.
+
+    Attributes:
+        embed_dims (list[int]):
+            Indices of input features that will be Fourier-embedded.
+        B (Tensor):
+            Random projection matrix with shape `(len(embed_dims), m)`.
+        out_features (int):
+            Output dimensionality after embedding and optional passthrough.
+
+    Shape:
+        - Input:  `(N, in_features)`
+        - Output: `(N, out_features)`
+          where `out_features = 2*m + len(keep_dims or [])`
+
+    Raises:
+        ValueError:
+            If `keep_dims` covers all input dimensions.
+
     """
-    def __init__(self, in_dim: int, embed_dims: list[int], m: int, sigma: float):
+    def __init__(self, in_features: int, m: int, sigma: float, keep_dims: None | list[int] = None):
+        """
+        Initialize a FourierFeatureEmbedding module.
+
+        Args:
+            in_features (int):
+                Total number of input features expected by the module.
+            m (int):
+                Number of random Fourier features per embedded dimension.
+                The embedding produces `2 * m` output features (cosine and sine).
+            sigma (float):
+                Standard deviation for the Gaussian distribution used to sample
+                the projection matrix `B` of shape `(len(embed_dims), m)`.
+            keep_dims (list of int or None, optional):
+                Indices of input dimensions to pass through unchanged.
+                If `None`, all input features are Fourier-embedded.
+                If provided, all dimensions *not* in `keep_dims` are embedded.
+                Must not include all input dimensions, otherwise an error is raised.
+        """
         super().__init__()
 
-        self.in_dim = in_dim
-        self.embed_dims = embed_dims[:]
+        self.in_features = in_features
         self.m = m
         self.sigma = sigma
+        self.keep_dims = None if keep_dims is None else keep_dims[:]
+        
+        if keep_dims is None:
+            embed_dims = list(range(in_features))
+        else:
+            embed_dims = [i for i in range(in_features) if i not in keep_dims]
+            if len(embed_dims) == 0:
+                raise ValueError("'keep_dims' list must not cover all the input features!")
+        self.embed_dims = embed_dims
 
-        self.register_buffer("B", torch.randn(m, len(embed_dims)) * sigma)
+        self.register_buffer("B", torch.randn(len(embed_dims), m) * sigma)
 
-    @property
-    def out_dim(self) -> int:
-        """Useful when defining subsequent linear layers."""
-        return 2 * self.m + self.in_dim - len(self.embed_dims)
+        self.out_features = 2*m
+        if  isinstance(self.keep_dims, list):
+            self.out_features += len(self.keep_dims)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        x : (..., in_dim) tensor in ℝ^{d}
-        returns : (..., 2*num_frequencies*in_dim) tensor
+        Compute the Fourier feature embedding for input `x`.
+
+        For the dimensions specified by `embed_dims`, computes::
+
+            xB = x[:, embed_dims] @ B
+            output = concat( cos(xB), sin(xB), x[:, keep_dims]? )
+
+        Args:
+            x (Tensor):
+                Input tensor of shape `(N, in_features)`.
+
+        Returns:
+            Tensor:
+                Embedded tensor of shape `(N, out_features)`.
         """
-        # Ensure last dimension matches in_dim
-        if x.shape[-1] != self.in_dim:
-            raise ValueError(f"Expected input dimension {self.in_dim}, got {x.shape[-1]}")
-
-        # F.linear does x @ B^T efficiently
-        #phases = F.linear(x, self.B)
-
-        x_to_embed = x[:, self.embed_dims]
-        Bx = torch.matmul(x_to_embed, self.B.T)  # Shape (..., m)
-        embedded = torch.cat((torch.cos(Bx), torch.sin(Bx)), dim=-1)
-        other_idx = [i for i in range(x.shape[-1]) if i not in self.embed_dims]
-        raw_rest = x[:, other_idx] if other_idx else None
+        x_embed = x[:, self.embed_dims]
+        xB = torch.matmul(x_embed, self.B)
+        result = torch.cat( (torch.cos(xB), torch.sin(xB)), dim=1 )
         
-        return embedded if raw_rest is None else torch.cat([raw_rest, embedded], dim=-1)
+        if self.keep_dims is None:
+            return result
+        else:
+            return torch.cat((result, x[:, self.keep_dims]), dim=1)
 
 class PeriodicLayer(nn.Module):
     """
@@ -216,20 +276,21 @@ class PeriodicLayer(nn.Module):
 
 # --- КЛАСС ПОЛНОСВЯЗНОЙ НЕЙРОННОЙ СЕТИ С FOURIER FEATURE EMBEDDING ---
 class MultilayerPerceptronWithFFE(nn.Module):
-    def __init__(self, layer_sizes, init_scheme, activation_fn=nn.Tanh(), use_FFE=True, FFE_embed_dims: list[int] = [], FFE_m=100, FFE_sigma=1.0):
+    def __init__(self, layer_sizes, init_scheme, activation_fn=nn.Tanh(), 
+                 use_FFE=True, FFE_m=100, FFE_sigma=1.0, FFE_keep_dims: None | list[int] = None):
         super().__init__()
 
         layer_sizes = layer_sizes[:]
         self.init_scheme = init_scheme
         self.activation_fn = activation_fn
         self.use_FFE = use_FFE 
-        self.FFE_embed_dims = list(range(layer_sizes[0])) if len(FFE_embed_dims) == 0 else FFE_embed_dims[:]
         self.FFE_m = FFE_m
         self.FFE_sigma = FFE_sigma
+        self.FFE_keep_dims = None if FFE_keep_dims is None else FFE_keep_dims[:]
 
         if use_FFE:
-            layers = [FourierFeatureEmbedding(layer_sizes[0], self.FFE_embed_dims, FFE_m, FFE_sigma)]
-            layer_sizes[0] = layers[0].out_dim
+            layers = [FourierFeatureEmbedding(layer_sizes[0], FFE_m, FFE_sigma, FFE_keep_dims)]
+            layer_sizes[0] = layers[0].out_features
         else:
             layers = []
         for i in range(len(layer_sizes) - 1):
@@ -260,13 +321,13 @@ class MultilayerPerceptronWithFFE(nn.Module):
             "init_scheme": model.init_scheme,
             "activation_fn": model.activation_fn,
             "use_FFE": model.use_FFE,
-            "FFE_embed_dims": model.FFE_embed_dims[:],
             "FFE_m": model.FFE_m,
             "FFE_sigma": model.FFE_sigma,
+            "FFE_keep_dims": model.FFE_keep_dims,
             "device": str(device)
         }
         if model.use_FFE:
-            config['layer_sizes'][0] = model.layers[0].in_dim
+            config['layer_sizes'][0] = model.layers[0].in_features
         torch.save({"config": config, "state_dict": model.state_dict()}, path)
 
     @classmethod
