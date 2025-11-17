@@ -247,7 +247,8 @@ class PeriodicLayer(nn.Module):
                 raise ValueError("'keep_dims' list must not cover all the input features!")
         self.embed_dims = embed_dims
 
-        self.register_buffer('_coeffs', torch.tensor([[(i + 1) * self.omega[j] for j in self.embed_dims] for i in range(self.m)]))
+        self.register_buffer('_coeffs', torch.tensor([
+            k * w for w in [self.omega[i] for i in self.embed_dims] for k in range(1, self.m+1)]))
 
         self.out_features = len(embed_dims) * (1 + 2*m)
         if  isinstance(self.keep_dims, list):
