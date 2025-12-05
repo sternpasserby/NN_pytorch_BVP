@@ -15,3 +15,14 @@
 2) bvp.py - модуль с иерархией для краевых задач (boundary value problems) и с рядом экземпляров конкретных краевых задач
 3) pinn.py - модуль с реализацией нейросетей на pytorch
 4) training.py - модуль с реализацией класса Coach, отвечающего за обучение нейросетей
+
+## Настройка окружения
+Python 3.13.7
+
+Для работы только на CPU: 
+
+    pip install -r requirements.txt
+
+Для работы на GPU нужно поправить пакеты torch и torchvision в файле requirements.txt и запустить установку по аналогии с: 
+
+    pip install --extra-index-url https://download.pytorch.org/whl/cu130 -r requirements.txt
