@@ -111,13 +111,11 @@ u_exact = pi*cos(x) + 2*sin(x) + 2*x - pi"""
         return torch.pi * torch.cos(x) + 2.0 * torch.sin(x) + 2.0 * x - torch.pi
 
 class HarmonicOscillatorUnderdamped1D(BVP, ITemporal):
-    delta = 2
-    omega0 = 20
 
     @property
     def description(self) -> str:
         return """ --- ОДНОМЕРНЫЙ ЗАТУХАЮЩИЙ ГАРМОНИЧЕСКИЙ ОСЦИЛЛЯТОР ---
-u'' + 2 * delta * u' + omega0^2 * t = 0, где delta = mu/(2m), omega0 = sqrt(k/m)   (случай с затуханиями: delta < omega0)
+u'' + 2 * delta * u' + omega0^2 * u = 0, где delta = mu/(2m), omega0 = sqrt(k/m)   (случай с затуханиями: delta < omega0)
 u(0)  = 1,
 u'(0) = 0.
 u_exact(t) = 2 * A * exp(-delta * t) * cos(phi + omega * t), 
@@ -125,7 +123,7 @@ u_exact(t) = 2 * A * exp(-delta * t) * cos(phi + omega * t),
     phi   = arctg(-delta/omega), 
     A     = 1 / (2 * cos(phi))"""
 
-    def __init__(self, temporal_domain, scheme='uniform', sobol_engine=None):
+    def __init__(self, temporal_domain, scheme='uniform', sobol_engine=None, delta=2, omega0=20):
         super().__init__()
         self._temporal_domain = temporal_domain
         self.scheme = scheme
@@ -133,6 +131,9 @@ u_exact(t) = 2 * A * exp(-delta * t) * cos(phi + omega * t),
             raise ValueError("For 'sobol' scheme, a valid SobolEngine instance must be provided.")
         else:
             self.sobol_engine = sobol_engine 
+
+        self.delta = delta
+        self.omega0 = omega0
 
     @property
     def temporal_domain(self): 

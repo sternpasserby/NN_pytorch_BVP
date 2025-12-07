@@ -5,6 +5,7 @@ import time
 import torch
 
 from NN_pytorch_BVP.bvp import *
+from NN_pytorch_BVP.pinn import compute_grad_theta_norm
 from NN_pytorch_BVP.formatted_table import FormattedTable
 
 
