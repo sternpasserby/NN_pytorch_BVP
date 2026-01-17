@@ -311,25 +311,32 @@ class MultilayerPerceptronWithFFE(nn.Module):
     def forward(self, x):
         return self.layers(x)
     
+    def to_checkpoint(self) -> dict:
+        """
+        Generates a dictionary that stores model's config and model's state_dict. Can be used to
+        save model to a external storage
+        """
+        device = next(self.parameters()).device
+        config = {
+            "layer_sizes": list(self.layer_sizes),
+            "init_scheme": self.init_scheme,
+            "activation_fn": self.activation_fn,
+            "use_FFE": self.use_FFE,
+            "FFE_m": self.FFE_m,
+            "FFE_sigma": self.FFE_sigma,
+            "FFE_keep_dims": self.FFE_keep_dims,
+            "device": str(device)
+        }
+        if self.use_FFE:
+            config['layer_sizes'][0] = self.layers[0].in_features
+        return {"config": config, "state_dict": self.state_dict()}
+
     @classmethod
     def save(cls, model, path: Path):
         """
         Saves model (both state_dict and additional parameters) to path
         """
-        device = next(model.parameters()).device
-        config = {
-            "layer_sizes": model.layer_sizes,
-            "init_scheme": model.init_scheme,
-            "activation_fn": model.activation_fn,
-            "use_FFE": model.use_FFE,
-            "FFE_m": model.FFE_m,
-            "FFE_sigma": model.FFE_sigma,
-            "FFE_keep_dims": model.FFE_keep_dims,
-            "device": str(device)
-        }
-        if model.use_FFE:
-            config['layer_sizes'][0] = model.layers[0].in_features
-        torch.save({"config": config, "state_dict": model.state_dict()}, path)
+        torch.save(model.to_checkpoint(), path)
 
     @classmethod
     def load(cls, path: Path, device=None):
