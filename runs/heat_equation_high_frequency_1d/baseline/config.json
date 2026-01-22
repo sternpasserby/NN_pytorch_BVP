@@ -7,7 +7,7 @@
     0.0,
     0.4
   ],
-  "device": "cuda",
+  "device": "cpu",
   "init_scheme": "glorot_normal",
   "layers": [
     2,
@@ -26,7 +26,7 @@
   "use_checkpointing": true,
   "checkpointing_freq": 2000,
   "use_FFE": false,
-  "FFE_m": 10,
+  "FFE_m": 3,
   "FFE_sigma": 1.0,
   "FFE_keep_dims": [
     0
