@@ -1,0 +1,45 @@
+{
+  "xlims": [
+    0.0,
+    3.141592653589793
+  ],
+  "tlims": [
+    0.0,
+    12.566370614359172
+  ],
+  "device": "cpu",
+  "init_scheme": "glorot_normal",
+  "layers": [
+    2,
+    128,
+    128,
+    1
+  ],
+  "n_epochs": 10000,
+  "n_points": 1000,
+  "lambda_r": 1.0,
+  "lambda_ic": 1.0,
+  "lambda_bc": 1.0,
+  "lr": 0.001,
+  "use_static_training_set": false,
+  "logging_freq": 200,
+  "use_checkpointing": true,
+  "checkpointing_freq": 2000,
+  "use_FFE": false,
+  "FFE_m": 3,
+  "FFE_sigma": 1.0,
+  "FFE_keep_dims": [
+    0
+  ],
+  "use_grad_norm_weighting": false,
+  "grad_norm_weighting_alpha": 0.95,
+  "grad_norm_weighting_freq": 250,
+  "use_causal_weighting_scheme": false,
+  "causal_m": 4,
+  "causal_eps": 0.5,
+  "W_logging_freq": 500,
+  "render_video": false,
+  "video_fps": 30,
+  "video_dpi": 100,
+  "video_render_freq": 100
+}
