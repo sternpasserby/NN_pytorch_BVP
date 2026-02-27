@@ -16,15 +16,16 @@
   "P_wave": 960.0,
   "F_wave": 4.0,
   "Re": 242.71844660194174,
-  "device": "cuda",
+  "Sigma_wave": 960.0,
+  "device": "cpu",
   "init_scheme": "glorot_normal",
   "layers": [
     2,
     256,
     256,
-    3
+    5
   ],
-  "n_epochs": 2000,
+  "n_epochs": 1000,
   "n_r": 10000,
   "n_bc_x": 400,
   "n_bc_y": 100,
