@@ -1,11 +1,11 @@
 {
   "xlims": [
-    0.0,
-    2.0
+    -3.0,
+    -1.0
   ],
   "ylims": [
-    -0.25,
-    0.25
+    -0.1,
+    0.4
   ],
   "tlims": [
     0.0,
@@ -21,7 +21,7 @@
   "F_wave": 4.0,
   "Re": 242.71844660194174,
   "Sigma_wave": 960.0,
-  "device": "cpu",
+  "device": "cuda",
   "init_scheme": "glorot_normal",
   "layers": [
     3,
