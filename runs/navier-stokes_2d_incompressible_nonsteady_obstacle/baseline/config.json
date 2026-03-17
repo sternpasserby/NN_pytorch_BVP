@@ -26,7 +26,7 @@
   "F_wave": 4.0,
   "Re": 242.71844660194174,
   "Sigma_wave": 960.0,
-  "device": "cuda",
+  "device": "cpu",
   "init_scheme": "glorot_normal",
   "layers": [
     3,
@@ -34,7 +34,7 @@
     256,
     5
   ],
-  "n_epochs": 1000,
+  "n_epochs": 4000,
   "n_r": 10000,
   "n_ic": 1770,
   "n_bc_x": 292,
@@ -54,6 +54,9 @@
   "lr": 0.001,
   "use_static_training_set": false,
   "logging_freq": 200,
+  "use_temporal_logging": true,
+  "temporal_logging_freq": 500,
+  "temporal_logging_nbins": 10,
   "use_checkpointing": true,
   "checkpointing_freq": 2000,
   "use_FFE": false,
