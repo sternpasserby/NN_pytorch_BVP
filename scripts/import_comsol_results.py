@@ -39,8 +39,9 @@ if __name__ == "__main__":
     x_min, x_max = -0.4, 0.94
     y_min, y_max = -0.1, 0.4
     t_min, t_max = 0.0, 10.0
-    x_obs, y_obs, r_obs = -0.0875, 0.15, 0.0625    # x, y and r of an obstacle
-    filepath_wo_ext = Path.cwd() / "data" / "navier-stokes_2d_incompressible_nonsteady_obstacle"
+    h = (y_max - y_min) / 2.0
+    x_obs, y_obs, r_obs = x_min + 1.25*h, y_min + h*0.5, h/4.0    # x, y and r of an obstacle
+    filepath_wo_ext = Path.cwd() / "data" / "navier-stokes_2d_incompressible_nonsteady_obstacle_shifted"
     device = torch.device("cpu")
 
     # Importing and saving txy and uvp
