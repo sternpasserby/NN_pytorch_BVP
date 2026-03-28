@@ -38,26 +38,19 @@ if __name__ == "__main__":
     # Parameters
     x_min, x_max = -0.4, 0.94
     y_min, y_max = -0.1, 0.4
-    t_min, t_max = 0.0, 10.0
+    t_min, t_max = 0.0, 1.0
     h = (y_max - y_min) / 2.0
-    x_obs, y_obs, r_obs = x_min + 1.25*h, y_min + h*0.5, h/4.0    # x, y and r of an obstacle
-    filepath_wo_ext = Path.cwd() / "data" / "navier-stokes_2d_incompressible_nonsteady_obstacle_shifted"
+    x_obs, y_obs, r_obs = x_min + 1.25*h, y_min + h, h/4.0    # x, y and r of an obstacle
+    filepath_wo_ext = Path.cwd() / "data" / "navier-stokes_2d_incompressible_nonsteady_obstacle"
     device = torch.device("cpu")
 
     # Importing and saving txy and uvp
     filepath_pt = filepath_wo_ext.with_suffix(".pt")
     filepath_txt = filepath_wo_ext.with_suffix(".txt")
-    if not filepath_pt.is_file():    # if .pt does not exist: import txt and save pt
-        print(f"File {str(filepath_pt)} does not exists. I am going to create it.")
-        print(f"Importing {str(filepath_txt)}...", end="")
-        txy, uvp = load_data(filepath_txt, device=device)
-        print("Done")
-        print(f"Saving to {str(filepath_pt)}...", end="")
-        torch.save({"txy": txy, "uvp": uvp}, filepath_wo_ext.with_suffix(".pt"))
-        print("Done")
-    else:    # load pt
-         txy, uvp = load_pt_data(filepath_pt, device=device)
+    txy, uvp = load_data(filepath_txt, device=device)
+    torch.save({"txy": txy, "uvp": uvp}, filepath_wo_ext.with_suffix(".pt"))
 
+    # Creating interpolator object
     interpolator = NearestNDInterpolator(txy.detach().cpu(), uvp.detach().cpu())
     def uvp_ref(txy):
         uvp = torch.tensor(interpolator(txy.detach().cpu()), dtype=txy.dtype, device=txy.device)
@@ -79,6 +72,7 @@ if __name__ == "__main__":
     mask = (xmid - x_obs)**2 + (ymid - y_obs)**2 < r_obs**2
     triang.set_mask(mask)
 
+    # Bring txy and uvp to time momend t=t_min
     txy[:, 0] = txy[:, 0] * 0.0 + t[0]
     uvp = uvp_ref(txy)
     u = uvp[:, 0]
@@ -91,7 +85,7 @@ if __name__ == "__main__":
     fig.colorbar(pc1, ax=ax).ax.set_title("m/s", pad=8)
 
     writer = anim.FFMpegWriter(
-        fps=10, 
+        fps=10,    # 0.1 seconds per frame
         codec='libx264', 
         extra_args=[
             "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
