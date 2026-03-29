@@ -36,7 +36,7 @@
     128,
     5
   ],
-  "n_epochs": 4000,
+  "n_epochs": 1000,
   "n_r": 70000,
   "n_ic": 1487,
   "n_bc_x": 2220,
@@ -72,8 +72,8 @@
   "causal_m": 10,
   "causal_eps": 100.0,
   "W_logging_freq": 100,
-  "render_video": false,
-  "video_fps": 30,
+  "render_video": true,
+  "video_fps": 10,
   "video_dpi": 100,
-  "video_render_freq": 100
+  "video_render_freq": 200
 }

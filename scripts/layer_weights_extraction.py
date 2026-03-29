@@ -1,9 +1,12 @@
 from pathlib import Path
 import sys
+from contextlib import nullcontext
 
+import numpy as np
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
+import matplotlib.animation as anim
 from tqdm import trange
 
 # Добавление корневой директории проекта в sys.path чтобы появилась
@@ -132,12 +135,17 @@ if __name__ == "__main__":
     u_exact = lambda x: torch.sin(x)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    layers_list = [1, 16, 128, 256, 1]
+    layers_list = [1, 16, 512, 256, 1]
 
     lr = 1e-3
-    n_iters = 10000
+    n_iters = 5000
     n_points = 100
     logging_freq = 100
+
+    render_video = True
+    video_fps = 10
+    video_dpi = 100
+    video_render_freq = 100    # render a frame once every N gradient descent steps
 
     model = MultilayerPerceptronWithFFE(
         layer_sizes=layers_list,
@@ -158,29 +166,85 @@ if __name__ == "__main__":
         "per_layer_weight_grad_ms": torch.zeros(n_log, n_logged_layers),
         "per_layer_bias_grad_ms": torch.zeros(n_log, n_logged_layers),
     }
+
+    ### ДЛЯ АНИМАЦИИ ПРОЦЕССА ОБУЧЕНИЯ
+    if render_video:
+        writer = anim.FFMpegWriter(
+            fps=video_fps, 
+            codec='libx264', 
+            extra_args=['-pix_fmt', 'yuv420p', '-preset', 'ultrafast', "-threads", "0"]
+        )
+        w, h = plt.rcParams['figure.figsize']
+        w *= 0.6; h *= 0.6
+
+        fig, axes = plt.subplots(
+            4, n_logged_layers, 
+            figsize=(n_logged_layers*w, 4*h), squeeze=False, constrained_layout=False)
+
+        row_labels = ["weights", "biases", "weights grad", "biases grad"]
+        for i, label in enumerate(row_labels):
+            axes[i, 0].set_ylabel(label, rotation=90, labelpad=20)
+        for j, name in enumerate(logged_names):
+            axes[0, j].set_title(name, pad=10)
+
+        n_bins = 100
+        st = np.empty_like(axes)
+        for i in range(axes.shape[0]):
+            for j in range(axes.shape[1]):
+                if i == 0 or i == 2:
+                    data = logged_layers[j].weight
+                elif i == 1 or i == 3:
+                    data = logged_layers[j].bias
+                counts, edges = torch.histogram(torch.rand_like(data).cpu(), bins=n_bins)
+                st[i, j] = axes[i, j].stairs(counts.cpu(), edges.cpu(), fill=True, baseline=0, color='C0')
+
     pbar = trange(n_iters, desc="Training model")
-    for iter in pbar:
-        x = x_min + (x_max-x_min)*torch.rand(n_points, 1, device=device)
-        u_model = model(x)
+    with writer.saving(fig, Path.cwd() / "scripts" / "tmp" / "layer_weights_extraction.mp4", dpi=video_dpi) if render_video else nullcontext():
+        for iter in pbar:
+            x = x_min + (x_max-x_min)*torch.rand(n_points, 1, device=device)
+            u_model = model(x)
 
-        loss = torch.mean( (u_model - u_exact(x))**2 )
+            loss = torch.mean( (u_model - u_exact(x))**2 )
 
-        optimizer.zero_grad()
-        loss.backward()
+            optimizer.zero_grad()
+            loss.backward()
 
-        if iter % logging_freq == 0:
-            i = iter // logging_freq
-            metrics["loss"][i] = loss.detach().item()
-            log_per_layer_ms(i, logged_layers, 
-                metrics["per_layer_weight_ms"], 
-                metrics["per_layer_bias_ms"], 
-                metrics["per_layer_weight_grad_ms"], 
-                metrics["per_layer_bias_grad_ms"]
-            )
-            pbar.set_postfix({'loss': metrics["loss"][i].item()})
-            
-        optimizer.step()
+            if iter % logging_freq == 0:
+                i = iter // logging_freq
+                metrics["loss"][i] = loss.detach().item()
+                log_per_layer_ms(i, logged_layers, 
+                    metrics["per_layer_weight_ms"], 
+                    metrics["per_layer_bias_ms"], 
+                    metrics["per_layer_weight_grad_ms"], 
+                    metrics["per_layer_bias_grad_ms"]
+                )
+                pbar.set_postfix({'loss': metrics["loss"][i].item()})
 
+            if render_video and iter % video_render_freq == 0:
+                fig.suptitle(f"Grad step: {iter:6d}")
+
+                for i in range(axes.shape[0]):
+                    for j in range(axes.shape[1]):
+                        if i == 0:
+                            data = logged_layers[j].weight
+                        elif i == 1:
+                            data = logged_layers[j].bias
+                        elif i == 2:
+                            data = logged_layers[j].weight.grad
+                        elif i == 3:
+                            data = logged_layers[j].bias.grad
+                        if data is None:
+                            continue
+                        counts, edges = torch.histogram(data.detach().cpu(), bins=n_bins)
+                        st[i, j].set_data(values=counts.cpu(), edges=edges.cpu())
+                        axes[i, j].relim()
+                        axes[i, j].autoscale_view()
+
+                writer.grab_frame()
+
+            optimizer.step()
+
+    # Plotting per-layer weights and biases mean squares
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, constrained_layout=True)
     for j in range(n_logged_layers):
         ax1.plot(metrics["step"], metrics["per_layer_weight_ms"][:, j], label=logged_names[j])
