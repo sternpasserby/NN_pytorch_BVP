@@ -36,7 +36,7 @@
     128,
     5
   ],
-  "n_epochs": 8000,
+  "n_epochs": 4000,
   "n_r": 70000,
   "n_ic": 1487,
   "n_bc_x": 2220,
@@ -56,7 +56,7 @@
   "lr": 0.001,
   "use_static_training_set": false,
   "logging_freq": 200,
-  "use_temporal_logging": true,
+  "use_temporal_logging": false,
   "temporal_logging_freq": 500,
   "temporal_logging_nbins": 10,
   "use_checkpointing": true,
