@@ -36,7 +36,7 @@
     128,
     5
   ],
-  "n_epochs": 1000,
+  "n_epochs": 10000,
   "n_r": 70000,
   "n_ic": 1487,
   "n_bc_x": 2220,
@@ -75,5 +75,5 @@
   "render_video": true,
   "video_fps": 10,
   "video_dpi": 100,
-  "video_render_freq": 200
+  "video_render_freq": 500
 }
