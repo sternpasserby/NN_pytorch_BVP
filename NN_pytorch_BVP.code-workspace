@@ -1,6 +1,7 @@
 {
 	"folders": [
 		{
+			"name": "NN_pytorch_BVP",
 			"path": "."
 		}
 	],
