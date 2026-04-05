@@ -5,17 +5,18 @@ from types import FunctionType
 import traceback
 
 import torch
+import torch.nn as nn
 
 # Добавление корневой директории проекта в sys.path чтобы появилась
 # возможность импортировать модули из NN_pytorch_BVP
 ROOT = Path.cwd()  # корень проекта
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from NN_pytorch_BVP.pinn import *
-from NN_pytorch_BVP.formatted_table import *
+from NN_pytorch_BVP.models import MultilayerPerceptronWithFFE
+from NN_pytorch_BVP.formatted_table import FormattedTable
 
 # Создание папки для временных файлов, если её нет
-temp_path = ROOT / 'tests' / 'temp'
+temp_path = ROOT / 'tmp' / "tests"
 temp_path.mkdir(exist_ok=True)
 
 # ------------------------------------ ТЕСТЫ ------------------------------------

@@ -95,7 +95,9 @@ if __name__ == "__main__":
         ]
     )
     pbar = trange(len(t), desc="Rendering import_comsol_results.mp4")
-    with writer.saving(fig, Path.cwd() / "scripts" / "tmp" / "import_comsol_results.mp4", dpi=150):
+    video_path = Path.cwd() / "tmp" / "import_comsol_results"
+    video_path.mkdir(exist_ok=True)
+    with writer.saving(fig, video_path / "import_comsol_results.mp4", dpi=150):
         for iter in pbar:
             txy[:, 0] = txy[:, 0] * 0.0 + t[iter]
             uvp = uvp_ref(txy)

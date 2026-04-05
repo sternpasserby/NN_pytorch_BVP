@@ -4,7 +4,8 @@ import torch
 import numpy as np
 from scipy.special import jn_zeros, j0, j1
 
-from NN_pytorch_BVP.pinn import *
+from NN_pytorch_BVP.sampling import sample_points_1D, sample_points_2D, sample_points_3D
+
 
 # --- ИЕРАРХИЯ КЛАССОВ ДЛЯ КРАЕВОЙ ЗАДАЧИ ---
 class BVP(ABC):
