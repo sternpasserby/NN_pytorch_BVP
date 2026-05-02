@@ -1,5 +1,4 @@
 import torch
-import os
 
 # Для аккуратного масштабирования пределов оси Y во время рендера анимации обучения
 def _relax_lim(
@@ -279,7 +278,7 @@ def get_trainable_layers(model):
 def _mean_square(x: torch.Tensor) -> float:
     return torch.mean(x.detach() ** 2).item()
 
-def log_per_layer_ms(    # ms = mean square
+def log_per_layer_ms(    # ms = mean square        
     log_idx: int, 
     logged_layers: list, 
     weight_ms_history: torch.Tensor,
@@ -344,3 +343,71 @@ def log_per_layer_ms(    # ms = mean square
             bias_grad_ms_history[log_idx, j] = _mean_square(layer.bias.grad)
         else:
             bias_grad_ms_history[log_idx, j] = float("nan")
+
+def make_cosine_annealing_warmup_scheduler(
+    optimizer: torch.optim.Optimizer, 
+    n_steps: int, 
+    n_warmup_steps: int, 
+    warmup_start_factor: float = 0.1, 
+    warmup_end_factor: float = 1.0, 
+    eta_min: float = 1e-4
+) -> torch.optim.lr_scheduler.LRScheduler:
+    """
+    Create a learning-rate scheduler with linear warmup followed by cosine annealing.
+
+    The scheduler should usually be stepped once per optimizer step. Therefore,
+    `n_steps` and `n_warmup_steps` should be expressed in the same units as
+    `scheduler.step()` calls. For example, if you call `scheduler.step()` once
+    per batch, then both arguments should count batches, not epochs.
+
+    Schedule:
+        1. Linear warmup:
+           lr = base_lr * factor, where factor changes linearly from
+           `warmup_start_factor` to `warmup_end_factor`.
+
+        2. Cosine annealing:
+           lr is annealed from the current learning rate after warmup toward
+           `eta_min` over `n_steps - n_warmup_steps` steps.
+
+    Args:
+        optimizer:
+            Optimizer whose learning rate will be scheduled.
+
+        n_steps:
+            Total number of scheduler steps over the whole training run.
+
+        n_warmup_steps:
+            Number of scheduler steps used for linear warmup.
+
+        warmup_start_factor:
+            Initial multiplicative factor for the base learning rate.
+            For example, 1e-3 means warmup starts at 0.001 * base_lr.
+
+        warmup_end_factor:
+            Final multiplicative factor for the base learning rate at the end
+            of warmup. Usually this should be 1.0.
+
+        eta_min:
+            Minimum learning rate used by CosineAnnealingLR. This is an
+            absolute learning rate, not a multiplicative factor.
+
+    Returns:
+        A PyTorch learning-rate scheduler.
+    """
+    warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+        optimizer,
+        start_factor=warmup_start_factor,
+        end_factor=warmup_end_factor,
+        total_iters=n_warmup_steps
+    )
+    cosine_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        T_max=n_steps - n_warmup_steps,
+        eta_min=eta_min
+    )
+    scheduler = torch.optim.lr_scheduler.SequentialLR(
+        optimizer,
+        schedulers=[warmup_scheduler, cosine_scheduler],
+        milestones=[n_warmup_steps]
+    )
+    return scheduler
