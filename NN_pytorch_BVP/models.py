@@ -105,19 +105,55 @@ def compute_grad_theta_norm(model: nn.Module) -> float:
             grad_norm += param.grad.norm(2).item() ** 2
     return grad_norm ** 0.5
 
+def make_activation(activation: str | nn.Module) -> nn.Module:
+    """
+    Convert activation config into an nn.Module.
+
+    Supports both:
+        activation = "tanh"
+        activation = nn.Tanh()
+    """
+    if isinstance(activation, str):
+        name = activation.lower()
+
+        if name == "tanh":
+            return nn.Tanh()
+        if name == "relu":
+            return nn.ReLU()
+        if name == "gelu":
+            return nn.GELU()
+        if name == "silu":
+            return nn.SiLU()
+        if name == "sigmoid":
+            return nn.Sigmoid()
+        if name == "softplus":
+            return nn.Softplus()
+
+        raise ValueError(f"Unknown activation: {activation!r}")
+
+    raise TypeError(
+        "activation must be either a string or an nn.Module, "
+        f"got {type(activation).__name__}"
+    )
+
 # --- КЛАСС ПОЛНОСВЯЗНОЙ НЕЙРОННОЙ СЕТИ С FOURIER FEATURE EMBEDDING ---
 class MultilayerPerceptronWithFFE(nn.Module):
-    def __init__(self, layer_sizes, init_scheme, activation_fn=nn.Tanh(), 
-                 use_FFE=True, FFE_m=100, FFE_sigma=1.0, FFE_keep_dims: None | list[int] = None):
+    def __init__(
+            self, 
+            layer_sizes: list[int] | tuple[int], 
+            init_scheme: str, 
+            activation: nn.Module | str = nn.Tanh(), 
+            use_FFE=True, FFE_m=100, FFE_sigma=1.0, FFE_keep_dims: None | list[int] | tuple[int] = None
+        ):
         super().__init__()
 
-        layer_sizes = layer_sizes[:]
+        layer_sizes = list(layer_sizes)
         self.init_scheme = init_scheme
-        self.activation_fn = activation_fn
+        self.activation = make_activation(activation)
         self.use_FFE = use_FFE 
         self.FFE_m = FFE_m
         self.FFE_sigma = FFE_sigma
-        self.FFE_keep_dims = None if FFE_keep_dims is None else FFE_keep_dims[:]
+        self.FFE_keep_dims = None if FFE_keep_dims is None else list(FFE_keep_dims)
 
         if use_FFE:
             layers = [FourierFeatureEmbedding(layer_sizes[0], FFE_m, FFE_sigma, FFE_keep_dims)]
@@ -127,7 +163,7 @@ class MultilayerPerceptronWithFFE(nn.Module):
         for i in range(len(layer_sizes) - 1):
             layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
             if i < len(layer_sizes) - 2:
-                layers.append(activation_fn)
+                layers.append(self.activation)
         self.layers = nn.Sequential(*layers)
 
         self._layer_sizes = layer_sizes[:]
