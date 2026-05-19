@@ -9,14 +9,13 @@ import torch.nn as nn
 
 # Добавление корневой директории проекта в sys.path чтобы появилась
 # возможность импортировать модули из NN_pytorch_BVP
-ROOT = Path.cwd()  # корень проекта
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-from NN_pytorch_BVP.models import MultilayerPerceptronWithFFE
+if str(Path.cwd()) not in sys.path:
+    sys.path.insert(0, str(Path.cwd()))
+from NN_pytorch_BVP.models import MultilayerPerceptronWithFFE, Sin
 from NN_pytorch_BVP.formatted_table import FormattedTable
 
 # Создание папки для временных файлов, если её нет
-temp_path = ROOT / 'tmp' / "tests"
+temp_path = Path.cwd() / 'tmp' / "tests"
 temp_path.mkdir(exist_ok=True)
 
 # ------------------------------------ ТЕСТЫ ------------------------------------
@@ -26,7 +25,7 @@ def test_save_load_model_cpu():
     model = MultilayerPerceptronWithFFE(
         layer_sizes=[3, 256, 512, 1], 
         init_scheme='glorot_normal', 
-        activation_fn=nn.Tanh(),
+        activation=nn.Tanh(),
         use_FFE=True,
         FFE_m=100,
         FFE_sigma=8.0,
@@ -46,7 +45,7 @@ def test_save_load_model_cuda():
     model = MultilayerPerceptronWithFFE(
         layer_sizes=[3, 256, 512, 1], 
         init_scheme='glorot_normal', 
-        activation_fn=nn.Tanh(),
+        activation=nn.Tanh(),
         use_FFE=True,
         FFE_m=100,
         FFE_sigma=8.0,
@@ -66,7 +65,7 @@ def test_save_load_model_cuda_no_ffe():
     model = MultilayerPerceptronWithFFE(
         layer_sizes=[3, 256, 512, 1], 
         init_scheme='glorot_normal', 
-        activation_fn=nn.Tanh(),
+        activation=nn.Tanh(),
         use_FFE=False,
         FFE_m=100,
         FFE_sigma=8.0,

@@ -1,4 +1,5 @@
 from pathlib import Path
+import warnings
 
 import torch
 import torch.nn as nn
@@ -113,6 +114,9 @@ def make_activation(activation: str | nn.Module) -> nn.Module:
         activation = "tanh"
         activation = nn.Tanh()
     """
+    if isinstance(activation, nn.Module):
+        return activation
+
     if isinstance(activation, str):
         name = activation.lower()
 
@@ -126,6 +130,8 @@ def make_activation(activation: str | nn.Module) -> nn.Module:
             return nn.SiLU()
         if name == "sigmoid":
             return nn.Sigmoid()
+        if name == "sin":
+            return Sin()
         if name == "softplus":
             return nn.Softplus()
 
@@ -186,7 +192,7 @@ class MultilayerPerceptronWithFFE(nn.Module):
         config = {
             "layer_sizes": list(self.layer_sizes),
             "init_scheme": self.init_scheme,
-            "activation_fn": self.activation_fn,
+            "activation": self.activation.__class__.__name__.lower(),
             "use_FFE": self.use_FFE,
             "FFE_m": self.FFE_m,
             "FFE_sigma": self.FFE_sigma,
@@ -205,31 +211,68 @@ class MultilayerPerceptronWithFFE(nn.Module):
         torch.save(model.to_checkpoint(), path)
 
     @classmethod
-    def load(cls, path: Path, device=None):
+    def load(cls, path: Path, device: None | str = None, eval_mode: bool = True):
         """
-        Loads model saved with cls.save() method. 
-        If device=None, tries to load model to GPU. Otherwise, loads to CPU
-        Currently, the method always loads to cuda:0
+        Load a model checkpoint saved with ``cls.save()``.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the checkpoint file.
+
+        device : str or None, optional
+            Device override for loading the checkpoint and returned model.
+
+            If provided, all automatic device-selection logic is skipped. The
+            checkpoint is loaded directly with ``map_location=device`` and the model
+            is moved to the same device. If the requested device is unavailable,
+            PyTorch raises an error.
+
+            If ``None``, the checkpoint is first loaded safely on CPU, then the
+            method tries to move the model to the device saved in the checkpoint
+            config. If that fails, it falls back to ``cuda:0`` when available,
+            otherwise ``cpu``.
+
+        eval_mode : bool, default=True
+            If True, calls ``model.eval()`` before returning. Set to False if the
+            model will continue training.
+
+        Returns
+        -------
+        cls
+            Reconstructed model with loaded weights.
         """
-        tmp = torch.load(path, weights_only=False)
+
+        if device is not None:
+            target_device = torch.device(device)
+            tmp = torch.load(path, map_location=target_device, weights_only=False)
+        else:
+            target_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            tmp = torch.load(path, map_location="cpu", weights_only=False)
 
         config = tmp.get("config")
         if config is None:
             raise KeyError("Checkpoint missing 'config'. Cannot reconstruct model.")
-        
-        config_device = config.get("device", None)
+
         if device is None:
-            if config_device is not None and config_device.startswith("cuda") and torch.cuda.is_available():
-                map_location = "cuda:0"
-            else:
-                map_location = "cpu"
-            device = torch.device(map_location)
-        else:
-            map_location = device
-        
+            config_device = config.get("device", None)
+
+            try:
+                torch.empty(1).to(torch.device(config_device))
+                target_device = torch.device(config_device)
+            except Exception:
+                warnings.warn(
+                    f"Failed to load the model on config_device={config_device!r}. "
+                    f"Loading on {target_device} instead.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+
         model = cls(**{k: v for k, v in config.items() if k != "device"})
-        model.to(device)
+        model.to(target_device)
         model.load_state_dict(tmp["state_dict"])
-        model.eval()
+
+        if eval_mode:
+            model.eval()
 
         return model
