@@ -39,14 +39,15 @@ def _extract_times_from_header(header_lines: list[str]) -> np.ndarray:
     return raw_times[::3]    # u,v,p repeat the same time, so keep one from each triplet
 
 def parse_comsol_txt(
-    filepath: Path, 
+    uvp_filepath: Path, 
+    clcd_filepath: Path, 
     dtype: torch.dtype = torch.float32, 
     device: torch.device = torch.device("cpu")
 ) -> dict[str, torch.Tensor]:
     
     # Get time moments array
     header_lines = []
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(uvp_filepath, "r", encoding="utf-8") as f:
         for line in f:
             if line.startswith("%"):
                 header_lines.append(line.rstrip("\n"))
@@ -55,11 +56,17 @@ def parse_comsol_txt(
     t = _extract_times_from_header(header_lines)
 
     # Get u, v and p for each time moment
-    data = np.genfromtxt(filepath, comments="%")
+    data = np.genfromtxt(uvp_filepath, comments="%")
     xy = data[:, 0:2]
     u = data[:, [2 + 3*i for i in range(len(t))]]
     v = data[:, [3 + 3*i for i in range(len(t))]]
     p = data[:, [4 + 3*i for i in range(len(t))]]
+
+    # Get C_L and C_D from a different  (clcd_filepath)
+    header_lines = []
+    data = np.genfromtxt(clcd_filepath, comments="%")
+    cl = data[:, 3]
+    cd = data[:, 4]
 
     to_pytorch = lambda x: torch.tensor(x, dtype=dtype, device=device)
 
@@ -68,7 +75,9 @@ def parse_comsol_txt(
         "t": to_pytorch(t), 
         "u": to_pytorch(u), 
         "v": to_pytorch(v), 
-        "p": to_pytorch(p)
+        "p": to_pytorch(p),
+        "C_L": to_pytorch(cl),
+        "C_D": to_pytorch(cd)
     }
 
 if __name__ == "__main__":
@@ -79,13 +88,14 @@ if __name__ == "__main__":
     t_min, t_max = 0.0, 1.0
     h = (y_max - y_min) / 2.0
     x_obs, y_obs, r_obs = x_min + 1.25*h, y_min + h, h/4.0    # x, y and r of an obstacle
-    comsol_solution_filepath = Path.cwd() / "data" / "navier-stokes_2d_incompressible_nonsteady_obstacle.txt"
+    uvp_comsol_filepath = Path.cwd() / "data" / "navier-stokes_2d_incompressible_nonsteady_obstacle.txt"
+    clcd_comsol_filepath = Path.cwd() / "data" / "navier-stokes_2d_incompressible_nonsteady_obstacle_CL_CD.txt"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Exporting and importing Comsol solution
-    comsol_solution_dict = parse_comsol_txt(comsol_solution_filepath, device=device)
-    torch.save(comsol_solution_dict, comsol_solution_filepath.with_suffix(".pt"))
-    comsol_solution_dict = torch.load(comsol_solution_filepath.with_suffix(".pt"), map_location=device)
+    comsol_solution_dict = parse_comsol_txt(uvp_comsol_filepath, clcd_comsol_filepath, device=device)
+    torch.save(comsol_solution_dict, uvp_comsol_filepath.with_suffix(".pt"))
+    comsol_solution_dict = torch.load(uvp_comsol_filepath.with_suffix(".pt"), map_location=device)
 
     # Unpacking Comsol solution
     xy_comsol = comsol_solution_dict["xy"].cpu()
@@ -93,6 +103,8 @@ if __name__ == "__main__":
     u_comsol = comsol_solution_dict["u"].cpu()
     v_comsol = comsol_solution_dict["v"].cpu()
     p_comsol = comsol_solution_dict["p"].cpu()
+    cl_comsol = comsol_solution_dict["C_L"].cpu()
+    cd_comsol = comsol_solution_dict["C_D"].cpu()
 
     # # Creating interpolator
     def uvp_ref(time_moment: float):
@@ -171,3 +183,17 @@ if __name__ == "__main__":
             fig.suptitle(f"time = {t:10.2f}")
 
             writer.grab_frame()
+
+    # Plot C_L
+    fig, ax = plt.subplots()
+    ax.set(title="C_L (lift coefficient)", xlabel="time, sec")
+    ax.plot(t_comsol, cl_comsol)
+    ax.grid(visible=True)
+    fig.savefig(Path.cwd() / "tmp" / "import_comsol_results" / "C_L.png", dpi=300)
+
+    # Plot C_D
+    fig, ax = plt.subplots()
+    ax.set(title="C_D (drag coefficient)", xlabel="time, sec")
+    ax.plot(t_comsol, cd_comsol)
+    ax.grid(visible=True)
+    fig.savefig(Path.cwd() / "tmp" / "import_comsol_results" / "C_D.png", dpi=300)
