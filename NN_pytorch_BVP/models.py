@@ -268,6 +268,9 @@ class MultilayerPerceptronWithFFE(nn.Module):
                     stacklevel=2,
                 )
 
+        if "activation_fn" in config:
+            config["activation"] = config.pop("activation_fn")
+
         model = cls(**{k: v for k, v in config.items() if k != "device"})
         model.to(target_device)
         model.load_state_dict(tmp["state_dict"])
