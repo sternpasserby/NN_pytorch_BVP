@@ -34,6 +34,7 @@
   "use_grad_norm_weighting": true,
   "grad_norm_weighting_alpha": 0.95,
   "grad_norm_weighting_freq": 200,
+  "grad_norm_weighting_eps": 0.5,
   "use_causal_weighting_scheme": false,
   "causal_m": 10,
   "causal_eps": 100.0,
