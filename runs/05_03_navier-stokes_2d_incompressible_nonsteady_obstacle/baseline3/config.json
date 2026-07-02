@@ -1,0 +1,141 @@
+{
+    "General": {
+        "results_folder": "d:\\Ó÷¸áà\\adf\\Ñêðèïòû\\NN_pytorch_BVP\\runs\\05_03_navier-stokes_2d_incompressible_nonsteady_obstacle\\baseline3",
+        "reference_solution_path": "d:\\Ó÷¸áà\\adf\\Ñêðèïòû\\NN_pytorch_BVP\\data\\navier-stokes_2d_incompressible_nonsteady_obstacle.pt",
+        "pretrained_ic_model_path": null,
+        "use_temporal_logging": false,
+        "temporal_logging_freq": 500,
+        "temporal_logging_nbins": 10
+    },
+    "Problem parameters": {
+        "xlims": [
+            -0.4,
+            0.94
+        ],
+        "ylims": [
+            -0.1,
+            0.4
+        ],
+        "tlims": [
+            0.0,
+            5.0
+        ],
+        "coords_obs": [
+            -0.08750000000000002,
+            0.15
+        ],
+        "d_obs": 0.125,
+        "nu": 0.00103,
+        "rho": 960,
+        "u0": 1.0
+    },
+    "Dimensionless parameters": {
+        "L_wave": 0.125,
+        "U_wave": 0.6666666666666666,
+        "T_wave": 0.1875,
+        "P_wave": 426.66666666666663,
+        "F_wave": 3.5555555555555554,
+        "Re": 80.9061488673139,
+        "Sigma_wave": 426.66666666666663
+    },
+    "Model parameters": {
+        "device": "cuda",
+        "init_scheme": "glorot_normal",
+        "layers": [
+            3,
+            256,
+            256,
+            256,
+            256,
+            5
+        ],
+        "activation": "gelu"
+    },
+    "Training parameters": {
+        "n_epochs": 20000,
+        "n_batches": 10,
+        "use_data_loss": true,
+        "lambdas": {
+            "u_r": 1.0,
+            "v_r": 1.0,
+            "sigma_xx_r": 1.0,
+            "sigma_xy_r": 1.0,
+            "sigma_yy_r": 1.0,
+            "p_r": 1.0,
+            "u_ic": 1.0,
+            "v_ic": 1.0,
+            "p_ic": 1.0,
+            "u_walls": 1.0,
+            "v_walls": 1.0,
+            "u_in": 1.0,
+            "v_in": 1.0,
+            "sigma_xx_out": 1.0,
+            "sigma_xy_out": 1.0,
+            "u_data": 1.0,
+            "v_data": 1.0
+        },
+        "lr": 0.001,
+        "logging_freq": 200
+    },
+    "Sampling parameters": {
+        "use_static_training_set": false,
+        "use_adaptive_sampling": false,
+        "resampling_frequency": 20,
+        "n_r": 100000,
+        "n_ic": 645,
+        "n_bc_xmin": 2406,
+        "n_bc_xmax": 2406,
+        "n_bc_ymin": 6448,
+        "n_bc_ymax": 6448,
+        "n_bc_obs": 47250,
+        "n_data": 10000,
+        "data_fraction": 0.1,
+        "batch_size_r": 10000,
+        "batch_size_ic": 65,
+        "batch_size_bc_xmin": 241,
+        "batch_size_bc_xmax": 241,
+        "batch_size_bc_ymin": 645,
+        "batch_size_bc_ymax": 645,
+        "batch_size_bc_obs": 4725,
+        "batch_size_data": 1000
+    },
+    "Checkpointing": {
+        "use_checkpointing": true,
+        "checkpointing_freq": 60000
+    },
+    "Fourier Feature embedding": {
+        "use_FFE": true,
+        "FFE_m": 256,
+        "FFE_sigma": 1.0,
+        "FFE_keep_dims": null
+    },
+    "Grad norm weighting": {
+        "use_grad_norm_weighting": true,
+        "grad_norm_weighting_alpha": 0.9,
+        "grad_norm_weighting_freq": 1000
+    },
+    "Causal weighting": {
+        "use_causal_weighting_scheme": true,
+        "causal_m": 16,
+        "causal_eps": [
+            0.01,
+            0.1,
+            1.0,
+            10.0,
+            100.0,
+            500.0,
+            1000.0
+        ],
+        "W_logging_freq": 500
+    },
+    "Time marching": {
+        "use_time_marching": true,
+        "n_time_windows": 8
+    },
+    "Video parameters": {
+        "render_video": false,
+        "video_fps": 10,
+        "video_dpi": 100,
+        "video_render_freq": 500
+    }
+}
